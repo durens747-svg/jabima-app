@@ -1,0 +1,1 @@
+mkdir _tmp && unzip -o *.zip -d _tmp && rm -f *.zip && shopt -s dotglob && ([ -f _tmp/build.gradle.kts ] && mv _tmp/* . || mv _tmp/*/* .) && rm -rf _tmp && git add -A && git commit -m "Add Jabima Funeral app" && git push
