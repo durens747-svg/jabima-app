@@ -1,1 +1,75 @@
-mkdir _tmp && unzip -o *.zip -d _tmp && rm -f *.zip && shopt -s dotglob && ([ -f _tmp/build.gradle.kts ] && mv _tmp/* . || mv _tmp/*/* .) && rm -rf _tmp && git add -A && git commit -m "Add Jabima Funeral app" && git push
+name: Build APK
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          mkdir -p src
+          for z in *.zip; do unzip -o "$z" -d src; done
+          ROOT="$(dirname "$(find src -name settings.gradle.kts | head -n 1)")"
+          cd "$ROOT"
+          [ -f debug.keystore.base64 ] && base64 -d debug.keystore.base64 > debug.keystore
+          [ -f .env.example ] && cp .env.example .env
+          gradle assembleDebug assembleRelease
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/out/JabimaFuneral-v1.7-release.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/JabimaFuneral-v1.7-debug.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JabimaFuneral-APKs
+          path: out/*.apk
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "v1.7-${{ github.run_number }}" out/*.apk --title "Jabima Funeral v1.7" --notes "Jabima Funeral APK"
+Wait ~4 minutes, then open Releases in your jabima-app repo and tap JabimaFuneral-v1.7-release.apk (~44 MB) or JabimaFuneral-v1.7-debug.apk (~53 MB) to download and install.
+Option 2: No Pasting in Codespaces (If You Already Have It Open)
+If your .zip is already uploaded inside Codespaces, you don't have to paste anything—just type these 4 tiny commands on your phone keyboard (tap Enter after each line):
+Bash
+unzip *.zip
+Bash
+rm *.zip
+Bash
+git add .
+Bash
+git commit -m app && git push
+(If ls after unzip *.zip shows a single folder instead of build.gradle.kts, type mv */* */.* . before git add ..)
+Option 3: Other Direct Routes
+Direct APK in AI Studio: Check the Settings menu (next to Export as ZIP and Push to GitHub) to see if Generate APK / AAB is available on your account.
+Retry Push to GitHub with a Brand-New Name: In Push to GitHub, choose Create a new repository and type a new name like jabima-app-v2 (not Jabima), and check on GitHub (Settings → Applications → Installed GitHub Apps) that AI Studio has access to All repositories.
+Using a Windows/Mac Laptop (if available): Download the Export as ZIP on a computer, unzip it, open the folder in Android Studio, and tap Build → Build Bundle(s) / APK(s) → Build APK(s).
+Any easier way via an adroid phone
+Gemini 4 Hydrogen
+Ran for 14s
+To be completely straightforward: an Android phone cannot compile a full Jetpack Compose + Firebase project directly on the device, and mobile browsers cannot upload nested code folders directly to GitHub.
+Because the automatic APK builder is already saved inside this project, the only truly easy no-command, no-pasting ways on an Android phone are:
+1. Direct APK in AI Studio (If Available on Your Account)
+Tap the Settings menu in AI Studio (the same menu as Export ZIP and Push to GitHub).
+Look for Generate APK / AAB (or Build APK).
+If shown, tap it to build and download the .apk straight to your phone—no GitHub needed.
+2. Fix 1-Tap "Push to GitHub" (Zero Commands, Zero File Uploading)
+If Generate APK isn't in your menu, fixing Push to GitHub is much easier than Codespaces or uploading files:
+On your phone browser, go to github.com/settings/installations.
+Tap Configure next to Google / AI Studio, select All repositories, and tap Save (this fixes the "Could not resolve to a repository" permission block).
+Return to AI Studio → Settings → Push to GitHub.
+Pick Create a new repository and type a brand-new lowercase name like jabima-app-1 (do not use Jabima), then tap Push.
+Wait ~4 minutes, open github.com/your-username/jabima-app-1/releases on your phone, and tap JabimaFuneral-v1.7-release.apk to download and install.
+3. If You Just Need to Use the App Right Now (or Have 5 Minutes on a PC)
+Use immediately on your phone: Open the Preview / Streaming Emulator right inside AI Studio in your phone browser.
+If Push to GitHub still refuses to connect: The simplest workaround without typing terminal commands is to open AI Studio on a Windows/Mac laptop for 5 minutes, download Export as ZIP, unzip it, and drag the folder onto a new GitHub repo (GitHub will then build the .apk automatically so you can download it on your phone).
+Suggestions
